@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/LearningTensorFlow.iml" filepath="$PROJECT_DIR$/.idea/LearningTensorFlow.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/LearningTensorFlow-py38.iml" filepath="$PROJECT_DIR$/.idea/LearningTensorFlow-py38.iml" />
     </modules>
   </component>
 </project>
