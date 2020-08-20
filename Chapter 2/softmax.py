@@ -1,13 +1,13 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
+tf.compat.v1.disable_eager_execution()
+
 DATA_DIR = '../data/'
 NUM_STEPS = 1000
 MINIBATCH_SIZE = 100
 
 data = tfds.load(name='mnist', split=['train', 'test'], data_dir=DATA_DIR)
-
-tf.compat.v1.disable_eager_execution()
 
 x = tf.compat.v1.placeholder(tf.float32, [None, 784])
 W = tf.Variable(tf.zeros([784, 10]))
