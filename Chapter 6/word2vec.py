@@ -15,7 +15,7 @@ tf.compat.v1.disable_eager_execution()
 batch_size = 64
 embedding_dimension = 5
 negative_samples = 8
-LOG_DIR = "../logs/word2vec_intro"
+LOG_DIR = "../data/logs/word2vec_intro"
 
 digit_to_word_map = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five",
                      6: "Six", 7: "Seven", 8: "Eight", 9: "Nine"}
