@@ -1,57 +1,63 @@
-import tensorflow_datasets as tfds
-import tensorflow as tf
-import numpy as np
+from __future__ import print_function
+import keras
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras import backend as k
 
-from layers import conv_layer, max_pool_2x2, full_layer
+batch_size = 128
+num_classes = 10
+epochs = 12
 
-tf.compat.v1.disable_eager_execution()
+# input image dimensions
+img_rows, img_cols = 28, 28
 
-DATA_DIR = '../data/'
-MINIBATCH_SIZE = 50
-STEPS = 5000
+# the data, split between train and test sets
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
 
+if k.image_data_format() == 'channels_first':
+    x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
+    x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
+    input_shape = (1, img_rows, img_cols)
+else:
+    x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
+    x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
+    input_shape = (img_rows, img_cols, 1)
 
-mnist = tfds.load(name='mnist', split=['train', 'test'], data_dir=DATA_DIR)
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train /= 255
+x_test /= 255
+print('x_train shape:', x_train.shape)
+print(x_train.shape[0], 'train samples')
+print(x_test.shape[0], 'test samples')
 
-x = tf.compat.v1.placeholder(tf.float32, shape=[None, 784])
-y_ = tf.compat.v1.placeholder(tf.float32, shape=[None, 10])
+# convert class vectors to binary class matrices
+y_train = keras.utils.to_categorical(y_train, num_classes)
+y_test = keras.utils.to_categorical(y_test, num_classes)
 
-x_image = tf.reshape(x, [-1, 28, 28, 1])
-conv1 = conv_layer(x_image, shape=[5, 5, 1, 32])
-conv1_pool = max_pool_2x2(conv1)
+model = Sequential()
+model.add(Conv2D(32, kernel_size=(3, 3),
+                 activation='relu',
+                 input_shape=input_shape))
+model.add(Conv2D(64, (3, 3), activation='relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(num_classes, activation='softmax'))
 
-conv2 = conv_layer(conv1_pool, shape=[5, 5, 32, 64])
-conv2_pool = max_pool_2x2(conv2)
+model.compile(loss=keras.losses.categorical_crossentropy,
+              optimizer=keras.optimizers.Adadelta(),
+              metrics=['accuracy'])
 
-conv2_flat = tf.reshape(conv2_pool, [-1, 7*7*64])
-full_1 = tf.nn.relu(full_layer(conv2_flat, 1024))
-
-keep_prob = tf.compat.v1.placeholder(tf.float32)
-full1_drop = tf.nn.dropout(full_1, rate=1-keep_prob)
-
-y_conv = full_layer(full1_drop, 10)
-
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_conv, labels=y_))
-train_step = tf.compat.v1.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-with tf.compat.v1.Session() as sess:
-    sess.run(tf.compat.v1.global_variables_initializer())
-
-    for i in range(STEPS):
-        batch = mnist.train.next_batch(MINIBATCH_SIZE)
-
-        if i % 100 == 0:
-            train_accuracy = sess.run(accuracy, feed_dict={x: batch[0], y_: batch[1],
-                                                           keep_prob: 1.0})
-            print("step {}, training accuracy {}".format(i, train_accuracy))
-
-        sess.run(train_step, feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
-
-    X = mnist.test.images.reshape(10, 1000, 784)
-    Y = mnist.test.labels.reshape(10, 1000, 10)
-    test_accuracy = np.mean(
-        [sess.run(accuracy, feed_dict={x: X[i], y_: Y[i], keep_prob: 1.0}) for i in range(10)])
-
-print("test accuracy: {}".format(test_accuracy))
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
+score = model.evaluate(x_test, y_test, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])

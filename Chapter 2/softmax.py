@@ -1,39 +1,51 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-tf.compat.v1.disable_eager_execution()
-
 DATA_DIR = '../data/'
-NUM_STEPS = 1000
-MINIBATCH_SIZE = 100
 
-data = tfds.load(name='mnist', split=['train', 'test'], data_dir=DATA_DIR)
+(ds_train, ds_test), ds_info = tfds.load(
+    'mnist',
+    split=['train', 'test'],
+    shuffle_files=True,
+    as_supervised=True,
+    with_info=True,
+    data_dir=DATA_DIR,
+)
 
-x = tf.compat.v1.placeholder(tf.float32, [None, 784])
-W = tf.Variable(tf.zeros([784, 10]))
 
-y_true = tf.compat.v1.placeholder(tf.float32, [None, 10])
-y_pred = tf.matmul(x, W)
+def normalize_img(image, label):
+    """
+    Normalizes images: `uint8` -> `float32`.
+    """
+    return tf.cast(image, tf.float32) / 255., label
 
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
-    logits=y_pred, labels=y_true))
 
-gd_step = tf.compat.v1.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
+ds_train = ds_train.map(
+    normalize_img, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+ds_train = ds_train.cache()
+ds_train = ds_train.shuffle(ds_info.splits['train'].num_examples)
+ds_train = ds_train.batch(128)
+ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
 
-correct_mask = tf.equal(tf.argmax(y_pred, 1), tf.argmax(y_true, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_mask, tf.float32))
+ds_test = ds_test.map(
+    normalize_img, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+ds_test = ds_test.batch(128)
+ds_test = ds_test.cache()
+ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)
 
-with tf.compat.v1.Session() as sess:
-    # Train
-    sess.run(tf.compat.v1.global_variables_initializer())
+model = tf.keras.models.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28, 1)),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+])
+model.compile(
+    loss='sparse_categorical_crossentropy',
+    optimizer=tf.keras.optimizers.SGD(learning_rate=0.5),
+    metrics=['accuracy'],
+)
 
-    for _ in range(NUM_STEPS):
-        batch_xs, batch_ys = tfds.load(name='mnist', split=['train', 'test'],
-                                       data_dir=DATA_DIR, batch_size=MINIBATCH_SIZE)
-        sess.run(gd_step, feed_dict={x: batch_xs, y_true: batch_ys})
-
-    # Test
-    ans = sess.run(accuracy, feed_dict={x: data.test.images,
-                                        y_true: data.test.labels})
-
-print("Accuracy: {:.4}%".format(ans * 100))
+model.fit(
+    ds_train,
+    epochs=10,
+    validation_data=ds_test,
+)
