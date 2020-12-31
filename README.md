@@ -1,6 +1,6 @@
 # Learning TensorFlow: A Guide to Building Deep Learning Systems
 
-Code examples from 
+Code examples from the
 "Learning TensorFlow: A Guide to Building Deep Learning Systems" 
 book by Tom Hope, Yehezkel S. Resheff, and Itay Lieder.
 
